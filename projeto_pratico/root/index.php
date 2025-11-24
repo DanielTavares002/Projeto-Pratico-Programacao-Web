@@ -1,49 +1,64 @@
 <?php
-session_start();
-require 'conexao.php';
+require_once '../src/auth.php';
 
-if($_SERVER['REQUEST_METHOD'] === 'POST'){
-    $email = $_POST['email'];
-    $senha = $_POST['senha'];
-
-    $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE email = ?");
-    $stmt->execute([$email]);
-    $usuario = $stmt->fetch();
-
-    if($usuario && password_verify($senha, $usuario['senha'])){
-        $_SESSION['usuario_id'] = $usuario['id'];
-        $_SESSION['usuario_nome'] = $usuario['nome'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        die("Token CSRF inválido!");
+    }
+    
+    $email = $_POST['email'] ?? '';
+    $senha = $_POST['senha'] ?? '';
+    
+    $resultado = loginUsuario($pdo, $email, $senha);
+    
+    if ($resultado['success']) {
         header("Location: dashboard.php");
         exit;
     } else {
-        $erro = "Email ou senha incorretos!";
+        $erro = $resultado['message'];
     }
 }
-?>
 
+if (verificarLogin()) {
+    header("Location: dashboard.php");
+    exit;
+}
+?>
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistema de Tarefas</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<h2>Login</h2>
-<div class="container">
-    <form method="POST" class="box">
-        <?php if(isset($erro)) echo "<p style='color:red; text-align:center;'>$erro</p>"; ?>
-        
-        <label>Email:</label><br>
-        <input type="email" name="email" required><br><br>
-
-        <label>Senha:</label><br>
-        <input type="password" name="senha" required><br><br>
-
-        <button type="submit">Login</button><br>
-        <p><a href="registro.php">Não possui conta? Cadastre-se</a></p>
-    </form>
-</div>
-
+    <div class="container">
+        <div class="login-form">
+            <h1>Login</h1>
+            
+            <?php if (isset($erro)): ?>
+                <div class="alert error"><?php echo $erro; ?></div>
+            <?php endif; ?>
+            
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
+                
+                <div class="form-group">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="senha">Senha:</label>
+                    <input type="password" id="senha" name="senha" required>
+                </div>
+                
+                <button type="submit" class="btn">Entrar</button>
+            </form>
+            
+            <p>Não tem conta? <a href="registro.php">Cadastre-se aqui</a></p>
+        </div>
+    </div>
 </body>
 </html>
